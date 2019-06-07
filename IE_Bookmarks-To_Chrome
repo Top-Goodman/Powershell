@@ -1,0 +1,141 @@
+#See whats in Favroites folder, if any Links/URL(s) found, run script.
+$FAV = Get-ChildItem $Home\Favorites -Recurse -File
+if ($FAV) {
+    #Write Favorites (Links/URLs) in root of Favorites folder to an array with modified and custom objects
+    $IE = Get-ChildItem $HOME\Favorites -File | ForEach-Object {
+    [pscustomobject]@{
+        Name = $_.Name -replace ".url$"
+        URL  = ($_ | Select-String "^URL").Line.Trim("URL=")
+    }
+}
+
+#Set Name For Import Folder - Change 'ChangeMe' below
+$ImportFolderName = "ChangeMe" #Chrome calls this "Import From IE"
+#Backup Bookmark file if it exists
+if ( Test-Path "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Bookmarks") {
+    Copy-Item  "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Bookmarks" "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Bookmarks.tmp" -Force
+<#
+In the event of failure bookmarks can be restored with
+move-item '$env:localappdata\Google\Chrome\User Data\Default\Bookmarks.tmp' '$env:localappdata\Google\Chrome\User Data\Default\Bookmarks' -Force
+#> 
+
+}
+    #Create a semi fake empty bookmark file if it does not exist 
+if (!( Test-Path "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Bookmarks")) {
+    New-Item "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Bookmarks" 
+    Write-Output '{
+        "checksum": "",
+        "roots": {
+           "bookmark_bar": {
+            "children": [{
+             } ],
+              "date_added": "",
+              "date_modified": "",
+              "id": "1",
+              "name": "Bookmarks bar",
+              "type": "folder"
+           },
+           "other": {
+              "children": [  ],
+              "date_added": "",
+              "date_modified": "0",
+              "id": "12",
+              "name": "Other bookmarks",
+              "type": "folder"
+           },
+           "synced": {
+              "children": [  ],
+              "date_added": "",
+              "date_modified": "0",
+              "id": "13",
+              "name": "Mobile bookmarks",
+              "type": "folder"
+           }
+        },
+        "version": 1
+     }'| Out-File "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Bookmarks" -encoding utf8
+}
+
+#Get/Load Chrome Bookmark file to inject into
+$Bkmk = Get-Content "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Bookmarks"
+#Start of Import Folder
+$Bkmk[4] += '"children": [{'
+#Nested Loops to almost mirror IE Bookmark folder structure
+#Write Folders in root of Favorites folder to an array
+$IED = Get-ChildItem $HOME\Favorites -Directory 
+
+#for ($f = 0; $f -lt $IED.count; $f++) {
+    if ($IED) {
+    $f = 0
+ Do { 
+     #Write ALL Links/URL(s) recursivly from subfolders beneath root of Favorites fodler to an array with modified and custom objects
+     #All lower folder structure is ignored as of this point, Files (Links/URLs) are not ignored however.
+     $IEF = Get-ChildItem $IED[$f].FullName -Recurse -File | ForEach-Object {
+        [pscustomobject]@{
+            Name = $_.Name -replace ".url$"
+            URL  = ($_ | Select-String "^URL").Line.Trim("URL=")
+        }
+    }
+    #Start of a Bookmark Folder
+    $Bkmk[4] += '"children": [{'
+    #Loop to pass each bookmark
+    
+    #for ($i = 0; $i -lt $IEF.count; $i++) {
+       #Empty folders will be created if they exist. Below errors are being supressed as empty folders result in null arrays that can't be called/accessed
+       #-ErrorAction SilentlyContinue was not working (Probably used it wrong, my fault), so I just shut it off and turned it back on instead
+       $i = 0 
+        Do {
+        $Bkmk[4] += '"date_added": "","id": "","meta_info": {"last_visited_desktop": ""},"name": "'
+        #Supress error
+        $ErrorActionPreference = 'SilentlyContinue'
+        $Bkmk[4] += $IEF[$i].Name
+        #Resume error
+        $ErrorActionPreference = 'Continue'
+        $Bkmk[4] += '","type": "url","url": "'
+        #Supress error
+        $ErrorActionPreference = 'SilentlyContinue'
+        $Bkmk[4] += $IEF[$i].URL
+        #Resume error
+        $ErrorActionPreference = 'Continue'
+        $Bkmk[4] += '"},{'
+    $i++
+    }
+    While ($i -lt $IEF.count)
+
+    $Bkmk[4] = ($Bkmk[4] -replace ".{2}$") # remove the ,{ from the last entry in loop
+    #Close and name a Bookmark folder
+    $Bkmk[4] += '],"date_added": "","date_modified": "","id": "","name": "'
+    $Bkmk[4] += $IED[$f].Name
+    $Bkmk[4] += '","type": "folder"},{' 
+        
+    $f++
+}
+While ($f -lt $IED.count)
+    }
+#Loop to pass each bookmark in root of $HOME\Favorites folder
+#for ($n = 0; $n -lt $IE.count; $n++) {
+    if ($IE) {
+    $n = 0
+    
+    Do{
+    #Get lines to inject
+    $Bkmk[4] += '"date_added": "","id": "","meta_info": {"last_visited_desktop": ""},"name": "'
+    $Bkmk[4] += $IE[$n].Name
+    $Bkmk[4] += '","type": "url","url": "'
+    $Bkmk[4] += $IE[$n].URL
+    $Bkmk[4] += '"},{'
+    $n++
+}
+    
+While ($n -lt $IE.count)
+}
+$Bkmk[4] = ($Bkmk[4] -replace ".{2}$") # remove the ,{ from the last entry in loop
+    
+#Close and name the Import Folder
+$Bkmk[4] += '],"date_added": "","date_modified": "","id": "","name": "'
+$Bkmk[4] += $ImportFolderName
+$Bkmk[4] += '","type": "folder"},{' 
+#Write-Output $Bkmk[4][($Bkmk[4].Length-4),($Bkmk[4].Length-3),($Bkmk[4].Length-2),($Bkmk[4].Length-1)]
+#Replace file with modified version
+$Bkmk | Set-Content "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Bookmarks"
+}
