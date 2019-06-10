@@ -1,0 +1,122 @@
+#----------Begin Variable Declarations Edit Below This Section-----------------------
+#Set full name (file name and path) for attachment. If no attachment will be used, comment this out and change "/a $attachment" to "/c ipm.note" near *** closer to bottom of script
+$attachment = "$Home/Path/to/File.docx"
+#Set a day of the week. Will get date of next instance of specified day, Here used in email message body
+[string]$day = "Sunday"
+#Pulls next occurance of specified day
+$date = Get-Date; while ($Date.DayOfWeek -ne $day) {
+    $date = $date.AddDays(1
+    )
+}; 
+#Reformats queried date
+$myDay = $date.GetDateTimeFormats()[7].Replace(" ", "%20").Replace(",", "%2C");
+#Archival date for renaming attachment later, used for unique names
+$archive = "$date".Replace(":", ".").Replace("/", "-").Replace(" ", "_") + ".docx"
+#Path to keep old attachments for record keeping, using unique name created above
+$archivePath = "$HOME\path\to\some\folder\$archive"
+#Where is attachment coming from, here I am using a edge to open a website to show a specific webpage
+$attachSource = "microsoft-edge:http://"
+#Email addresses. These are semi-colon (;) seperated lists. Email1@domain.com;Email2@domain.org
+$To = ""
+$CC = ""
+$BCC = ""
+#Email subject
+$Subject = ""
+#ASCII hexadecimal equivalents as variables for punctuation characters ( ) %20, (,) %2C, (?) %3F, (.) %2E, (!) %21, (:) %3A, (;) %3B, and (new-line) %0A
+#For example To%20Whom%20It%20May%20Concern%2C%0A Will be To Whom It May Concern,[new-line]
+$Body = ""
+#Arguments for outlook to send via mail app. Tested working using outlook. Notice the ? is escaped with backtick (`)
+$Email = "$To`?cc=$CC&bcc=$BCC&subject=$Subject&body=$Body"
+#----------End Variable Declarations Edit Above This Section-----------------------
+
+#Display message on screen, after 3 minutes actions occur regardless of button press
+Write-Output "MS Word will now close" "Save any needed Documents" "Press OK to continue" | msg * /W /Time:180
+$ErrorActionPreference = 'SilentlyContinue'
+#Close all occurances of word
+Stop-Process (get-process winword).id
+$ErrorActionPreference = 'Continue'
+Start-Sleep 2
+#Check if attachment currently exists and delte it
+if (Test-Path $attachment) { Remove-Item $attachment }
+Start-Sleep 2
+#Display message on screen, after 30 seconds actions occur regardless of button press
+Write-Output "Attachment collection automation will now occur" "Please press OK and release mouse/keyboard. Press {ENTER} at end to send email" | msg * /W /Time:30
+#Until attachment exists keep trying to create it
+Do {
+    $ErrorActionPreference = 'SilentlyContinue'
+    Stop-Process (get-process winword).id
+    $ErrorActionPreference = 'Continue'
+    Start-Process $attachSource
+    Start-Sleep 10
+    #Take screenshot of active window
+    [Windows.Forms.Sendkeys]::SendWait("%{PrtSc}") 
+    #Launch Microsoft Word
+    Start-Process winword
+    Start-Sleep 4
+    #Set Word as active window
+    (New-Object -ComObject WScript.Shell).AppActivate((get-process winword).Id).MainWindowTitle
+    Start-Sleep 4
+    #MS Word New Document
+    [Windows.Forms.Sendkeys]::SendWait("%(n)")
+    #Blank Document
+    [Windows.Forms.Sendkeys]::SendWait("%(l)")
+    Start-Sleep 2
+    #Paste clipboard. Not sure why control V +(V) or +{V} were not working for paste, had to use shift insert
+    [Windows.Forms.Sendkeys]::SendWait("+{INS}")
+    Start-Sleep 2
+    #Save as
+    [Windows.Forms.Sendkeys]::SendWait("{F12}")
+    Start-Sleep 2
+    #Inject attachment path and name, should default to the filename bar on bottom
+    (New-Object -ComObject Wscript.Shell).Sendkeys($attachment) 
+    Start-Sleep 2
+    #Enter to save
+    [Windows.Forms.Sendkeys]::SendWait("~")
+    Start-Sleep 2
+    #Kill Edge browser, replace this with attatchment source program, to prevent several of them open in the event of loop needs to run multiple times
+    $ErrorActionPreference = 'SilentlyContinue'
+    Stop-Process (Get-Process MicrosoftEdge*).ID -Force
+    $ErrorActionPreference = 'Continue'
+}
+
+While (!(Test-Path $attachment))
+#Close Microsoft Word
+$ErrorActionPreference = 'SilentlyContinue'
+Stop-Process (get-process winword).id
+$ErrorActionPreference = 'Continue'
+
+#***If not using any attachments change "/a $attachment" to "/c ipm.note"
+Start-Process "OUTLOOK.EXE" -ArgumentList "/a $attachment /m $Email"
+#Outlook can't be found in path environment variables.
+if ("$?" -eq "False") {
+    #Regex match for Outlook in Program Files and Program Files (x86). Possible, common, likely, default locations for outlook.exe
+    $MSO = Get-ChildItem 'C:\Program Files*\Microsoft Office*\*' -Recurse | Where-Object { $_.FullName -match "^[a-zA-Z]:\\Program Files( \(x86\)){0,1}\\Microsoft Office( 1\d\\ClientX(64|86)){0,1}\\((?i)root\\){0,1}Office1\d\\((?i)outlook\.exe)$" }
+    if ($MSO.count -eq 1) {
+    Start-Process $MSO.FullName -ArgumentList "/a $attachment /m $Email"
+    }
+    if ($MSO.count -ne 1) {
+    #The regex returns more than one entry
+    if ($MSO.Count -gt 1) {
+    #Trim the array into just a list of paths
+    $MSO = $MSO | ForEach-Object { $_.FullName } 
+    #Show all the paths found for outlook plus the location of the attachment
+    Write-Output "    Multiple Outlooks Detected:"$MSO"
+    Use: "$archivePath" 
+    To send email yourself"| msg * /W /Time:9999999
+    }
+    #Regex matched nothing on computer, no outlooks found. 
+    if ($MSO.Count -eq 0) {
+        #Show location of attachment
+    Write-Output "Cannot find Outlook." "Navigate to  $archivePath  and send email yourself" | msg * /W /Time:9999999 
+    }
+Exit
+}
+}
+Start-Sleep 2
+#Outlook as active window, 
+(New-Object -ComObject WScript.Shell).AppActivate((get-process outlook).Id).MainWindowTitle
+#Control Enter to send message. Make sure this is enabled in settings
+[Windows.Forms.Sendkeys]::SendWait("^~")
+#Start-Sleep 5
+#Archive file
+Move-Item $attachment $archivePath
