@@ -1,0 +1,60 @@
+function PinApp {    param(
+        [string]$appname,
+        [switch]$unpin
+    )
+    try{
+        if ($unpin.IsPresent){
+            ((New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() `
+            | Where-Object {$_.Name -eq $appname}).Verbs() `
+            | Where-Object {$_.Name.replace('&','') -match 'From "Start" UnPin|Unpin from Start'} `
+            | ForEach-Object {$_.DoIt()}
+            return "App '$appname' unpinned from Start"
+        }else{
+            ((New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() `
+             | Where-Object {$_.Name -eq $appname}).Verbs() `
+             | Where-Object {$_.Name.replace('&','') -match 'To "Start" Pin|Pin to Start'} `
+             | ForEach-Object {$_.DoIt()}
+            return "App '$appname' pinned to Start"
+        }
+    }catch{
+        Write-Error "Error Pinning/Unpinning App! (App-Name correct?)"
+    }
+}
+<#Uncomment this section if you wish to manipulate ALL current pinned start menu items
+#Load current items in start menu
+$allapps=((New-Object -Com Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items())
+#Check verbs. Should either have "Pin to" or "Unpin from", the latter being the objects currently pinned to start
+foreach($app in $allapps){
+    if($app.Verbs() | Where-Object {$_.Name.replace('&','') -match 'Unpin from Start'}){
+        $pinnedapp += @($app.Name)
+        
+        }
+    }
+
+    #Uncomment to Remove all Current Items. This allows organization that provided $addapps 
+#are beginning (top left) of start menu pinned items without windows creating its groups. Not needed for functionlaity. Cosmetic only
+foreach($exists in $pinnedapp)
+{
+    
+    #PinApp $exists -unpin
+}
+#>
+#Array of new stuff to add. Comma seperated in quotes. Match names as written in start menu. "Google Chrome", "Calculator"
+$addapps = "Google Chrome"
+#Array of new stuff to remove. Comma seperated in quotes. Match names as written in start menu. "Google Chrome", "Calculator"
+$removeapps = "Firefox"
+#Add array to start menu
+ForEach ($listed in $addapps) {
+PinApp $listed
+}
+#Remove array from start menu
+ForEach ($listed in $removeapps) {
+    PinApp $listed -unpin
+    }
+    
+<# Goes with the top section. Adds back all removed objects. This allows organization that provided $addapps 
+are beginning (top left) of start menu pinned items without windows creating its groups. Not needed for functionlaity. Cosmetic only
+foreach($exists in $pinnedapp)
+{
+    #PinApp $exists
+}#>
