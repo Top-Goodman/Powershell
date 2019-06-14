@@ -1,3 +1,5 @@
+#Load Windows Forms for Screenshots
+Add-Type -AssemblyName System.Windows.Forms,System.Drawing
 #----------Begin Variable Declarations Edit Below This Section-----------------------
 #Set full name (file name and path) for attachment. If no attachment will be used, comment this out and change "/a $attachment" to "/c ipm.note" near *** closer to bottom of script
 $attachment = "$Home/Path/to/File.docx"
