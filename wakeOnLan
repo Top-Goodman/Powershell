@@ -1,0 +1,18 @@
+#Force a string type parameter. Validate against a RegEx (Colons (:) and/or Hyphens (-) only)
+Param(
+    [Parameter(Mandatory = $true)] 
+    [ValidatePattern ('^(([\da-fA-F]){2}[:\-]){5}([\da-fA-F]){2}$')]
+    [string]$Mac 
+)
+#Parse out the provided mac
+$MacByteArray = $Mac -split "[:-]" | ForEach-Object { [Byte] "0x$_" }
+#Populate an array
+[Byte[]] $MagicPacket = (, 0xFF * 6) + ($MacByteArray * 16)
+#Load object to push network packets
+$UdpClient = New-Object System.Net.Sockets.UdpClient
+#Connect to local subnet
+$UdpClient.Connect(([System.Net.IPAddress]::Broadcast), 7)
+#Broadcast arrayed mac address onto current local subent
+$UdpClient.Send($MagicPacket, $MagicPacket.Length)
+#Close network "Finish"
+$UdpClient.Close()
