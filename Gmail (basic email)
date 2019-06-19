@@ -5,19 +5,19 @@ $EmailTo = "DescriptiveName <email@domain>"
 #EMail subject. The date is optional, nice for automation event.
 $Subject = "Subject $(get-date)"
 
-@Alternativly date can go in message body along with any other prewritten text or vairbales 
+#Alternativly date can go in message body along with any other prewritten text or vairbales 
 $Body = @"
 $(get-date)
 "@
 
 #server (here gmail is used, this can be changed)
 $SMTPServer = "smtp.gmail.com" 
-#Create object to handle mail, Gmail port is 587 change if your needs are different
+#Load .Net Framework to handle mail, Gmail port is 587 change if your needs are different
 $SMTPClient = New-Object Net.Mail.SmtpClient($SmtpServer, 587) 
 #Comment out or change to $false if there is no SSL encryption for mail connection/login
 $SMTPClient.EnableSsl = $true 
 #Create object to handle username and password of email address. For username omit the domain
-#Yes password will be plain text. Feel free to encrypt this if you'd like and maybe pass this through as arguments instead. 
+#Yes password will be plain text. Feel free to encrypt this if you'd like and maybe pass this through as arguments or referencing an external file instead. 
 $SMTPClient.Credentials = New-Object System.Net.NetworkCredential("username", "password");
 #Send mail
 $SMTPClient.Send($EmailFrom, $EmailTo, $Subject, $Body)
