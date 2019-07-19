@@ -1,0 +1,27 @@
+#We all know what a path is.....
+$Path = "C:\Program Files\Mozilla Firefox\" "Some\Path\To\Some\Folder"
+#Can use a Regex in the where-object with -match or -like
+$Search = "'.exe$'"
+(Get-ChildItem '$'Path).FullName | Where-Object { $_ -match "$Search"} |ForEach-Object { [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$_")}
+
+# Alternativly if your path is just to one file you can skip most of the above
+[System.Diagnostics.FileVersionInfo]::GetVersionInfo("$Path")
+
+############################################################################################
+#Name of Software
+$Name = ""
+# MSI Identifying Number. Should follow a pattern of {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}, where X is a hex value (0-9 and a-f, or 0-f)
+#The inclusion of the %s make the curly brackets {} optional for the variable declaration. Or partial value should work, yet may yield multiple results
+$IN = ""
+
+# WMI a % is a wildcard in WMI, this one takes a while as it actually needs to query before it can display anything
+# Also only applies to MSI or MSI wrapped installs. Many exe are in fact wrapped msi. Useful if you don't know the path
+Get-WmiObject -Query "Select * FROM Win32_Product WHERE Name like '%$Name%'"
+
+Get-WmiObject -Query "Select * FROM Win32_Product WHERE IdentifyingNumber like '%$IN%'"
+
+#You can sort results, This will find all possible then sort by name with Sort-Object (You can also use IdentifyingNumber instead of name)
+(Get-WmiObject -Query "Select * FROM Win32_Product WHERE Name like '%$Name%'")|Sort-Object -Property Name
+
+#You can Filter (and Sort) results with Format-Table (and Sort-Object above) (You can also use IdentifyingNumber instead of name)
+ (Get-WmiObject -Query "Select * FROM Win32_Product WHERE Name like '%$Name%'")|Sort-Object -Property Name|Format-Table -Property Name,Version,IdentifyingNumber
