@@ -1,27 +1,40 @@
+############################################### Method 1 ###############################################
+################## When you know at least the containing folder and maybe a file type ##################
+########################################################################################################
 #We all know what a path is.....
-$Path = "C:\Program Files\Mozilla Firefox\" "Some\Path\To\Some\Folder"
+$Path = "C:\Program Files\Mozilla Firefox\" #"Some\Path\To\Some\Folder"
 #Can use a Regex in the where-object with -match or -like
-$Search = "'.exe$'"
-(Get-ChildItem '$'Path).FullName | Where-Object { $_ -match "$Search"} |ForEach-Object { [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$_")}
+$Search = ".exe$"
+(Get-ChildItem $Path).FullName | Where-Object { $_ -match "$Search"} |ForEach-Object { [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$_")}
 
+############################################### Method 2 ###############################################
+#################### When you know at least the full file path, including file type ####################
+########################################################################################################
 # Alternativly if your path is just to one file you can skip most of the above
 [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$Path")
 
-############################################################################################
+############################################### Method 3 ###############################################
+############# When you know the program name or MSI Product code and not the name or path ##############
+########################################################################################################
 #Name of Software
 $Name = ""
 # MSI Identifying Number. Should follow a pattern of {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}, where X is a hex value (0-9 and a-f, or 0-f)
 #The inclusion of the %s make the curly brackets {} optional for the variable declaration. Or partial value should work, yet may yield multiple results
 $IN = ""
 
-# WMI a % is a wildcard in WMI, this one takes a while as it actually needs to query before it can display anything
-# Also only applies to MSI or MSI wrapped installs. Many exe are in fact wrapped msi. Useful if you don't know the path
+# In WMI a % is a wildcard, this one takes a while as it actually needs to query before it can display anything
+# Also only applies to MSI or MSI wrapped installs. Some exe are in fact wrapped msi. Useful if you don't know the path
+# You can leave Name blank to list all found on machine or just Name like "%" will find all and you can ignore the Name variable
+# Or to list all you can just use: Get-WmiObject -Query "Select * FROM Win32_Product"
 Get-WmiObject -Query "Select * FROM Win32_Product WHERE Name like '%$Name%'"
 
 Get-WmiObject -Query "Select * FROM Win32_Product WHERE IdentifyingNumber like '%$IN%'"
 
+############################################### Method 3a ##############################################
+######################## Organization of the results using sort and/or format  #########################
+########################################################################################################
 #You can sort results, This will find all possible then sort by name with Sort-Object (You can also use IdentifyingNumber instead of name)
 (Get-WmiObject -Query "Select * FROM Win32_Product WHERE Name like '%$Name%'")|Sort-Object -Property Name
 
-#You can Filter (and Sort) results with Format-Table (and Sort-Object above) (You can also use IdentifyingNumber instead of name)
- (Get-WmiObject -Query "Select * FROM Win32_Product WHERE Name like '%$Name%'")|Sort-Object -Property Name|Format-Table -Property Name,Version,IdentifyingNumber
+#You can Filter (and Sort) results with Format-Table (and Sort-Object above) (You can also use name instead of IdentifyingNumber)
+ (Get-WmiObject -Query "Select * FROM Win32_Product WHERE IdentifyingNumber like '%$IN%'")|Sort-Object -Property Name|Format-Table -Property Name,Version,IdentifyingNumber
