@@ -2,7 +2,10 @@
 Add-Type -AssemblyName System.Windows.Forms,System.Drawing
 #----------Begin Variable Declarations Edit Below This Section-----------------------
 #Set full name (file name and path) for attachment. If no attachment will be used, comment this out and change "/a $attachment" to "/c ipm.note" near *** closer to bottom of script
-$attachment = "$Home/Path/to/File.docx"
+# If attachment is created by means other than this script you can use something like the below comment
+# $attachment= $(gci C:\Path\to\folder\containing\file -File | sort-object -Property LastWriteTime -Descending)[0]
+# This will take the most recent file in a folder
+$attachment = "$Home\Path\to\File.docx" 
 #Set a day of the week. Will get date of next instance of specified day, Here used in email message body
 [string]$day = "Sunday"
 #Pulls next occurance of specified day
@@ -42,6 +45,14 @@ Start-Sleep 2
 if (Test-Path $attachment) { Remove-Item $attachment }
 Start-Sleep 2
 #Display message on screen, after 30 seconds actions occur regardless of button press
+# Here $attachSource is opened and a screenshot is taken. This is than put into Microsoft Word and saved to be used as $attachment 
+# Yes this entire section can be replaced by using powershell to write the screenshot to file.
+# The reason this script came into existance is because for reasons there were instructions to have a picture in a word doc and it had to be done weekly
+# A regular image file was not acceptable given the circumstances
+# Also this section can be skipped compltly if you have no need for the script to create the attachment. 
+# For example if your attachment is created and saves using another program you can use that in the $attachment decleration above
+# also you can programatically have $attachment take the newest (largest date) item in a folder
+# in variable decleration above you can use something like $attachment= $(gci -File | sort-object -Property LastWriteTime -Descending)[0]
 Write-Output "Attachment collection automation will now occur" "Please press OK and release mouse/keyboard. Press {ENTER} at end to send email" | msg * /W /Time:30
 #Until attachment exists keep trying to create it
 Do {
