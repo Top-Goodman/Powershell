@@ -1,3 +1,4 @@
+Funtion WoL {
 #Force a string type parameter. Validate against a RegEx (Colons (:) and/or Hyphens (-) only)
 Param(
     [Parameter(Mandatory = $true)] 
@@ -16,3 +17,4 @@ $UdpClient.Connect(([System.Net.IPAddress]::Broadcast), 7)
 $UdpClient.Send($MagicPacket, $MagicPacket.Length)
 #Close network "Finish"
 $UdpClient.Close()
+}
