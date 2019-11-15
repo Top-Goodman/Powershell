@@ -1,0 +1,10 @@
+[string]$bitVersion = "win32-x64" #You can change this to "win32" for 32 bit version. You can also add "-user" to have this install to appdata\local and not require admin. "win32-user" or "win32-x64-user"
+[string]$BuildEdition = "stable" #You can change this to "insider" for insider build. 
+[string]$appInstallerParams1 = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-"
+[string]$appVersion = ((Invoke-WebRequest https://code.visualstudio.com/).Links|Where-Object {$_ -like "*Version*"}).outerText.Split(' ')[1]
+[string]$appInstaller1 = "$PSScriptRoot\vscode-$($BuildEdition)-$($bitVersion)-$($appVersion).exe"
+if ("$null" -eq $PSScriptRoot) {[string]$appInstaller1 = ".\vscode-$($BuildEdition)-$($bitVersion)-$($appVersion).exe"}
+# Download latest version to location script is running from
+Invoke-WebRequest -Uri "https://vscode-update.azurewebsites.net/latest/$($bitVersion)/$($BuildEdition)" -OutFile "$appInstaller1"
+Start-Process $appInstaller1 -ArgumentList "$appInstallerParams1"
+Remove-Item -Force -Confirm:$False $appInstaller1
