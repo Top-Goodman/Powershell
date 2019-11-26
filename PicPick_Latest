@@ -1,0 +1,13 @@
+#Define Variables
+[string]$Uri="https://www.picpick.org/releases/latest/picpick_inst.exe"
+[string]$OutFile="$PSScriptRoot\picpick_inst.exe"
+#Download Application Installer
+Invoke-WebRequest -Uri $Uri UseBasicParsing -OutFile $OutFile
+#Invoke
+$OutFile /S -wait
+#Wait
+start-sleep 10
+#Cleanup
+Remove-Item $OutFile
+#Launch (Even for updating it closes program and doens't launch at end due to the silent install parameter)
+&'C:\Program Files (x86)\PicPick\picpick.exe'
