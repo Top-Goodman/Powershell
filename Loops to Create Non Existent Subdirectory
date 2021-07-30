@@ -1,0 +1,30 @@
+<#
+# This might be helpul. Not the most elegant pattern validation. Just makes sure at least one backslash exists in provided path
+    [Parameter(Mandatory=$false)]
+    # Makes sure at least one backslash exists in string
+    [ValidatePattern('^\\$')]
+	  [string]$Path="",
+#>
+
+# Desired path
+[string]$Path=""
+# Split path into each specified folder name
+[array]$Array=$Path.split('\')
+# Starting from full path, remove a subfolder until we find a path that exists
+($Array.Length..0)|ForEach-Object {
+   $newPath=[string]::Join("\",$Array[0..$_])
+    # Once we find the outter most existing path (lowest existing subdirectory), break the loop
+    if (test-Path $newPath) {
+        $indexExists=$_
+        break
+    }
+}
+# Another loop to begin creating the subfolders until we have the full path
+(($indexExists+1)..($Array.Length-1))|ForEach-Object{
+    # Path of the highest subfolder that does not yet exist
+    $makePath=[string]::Join("\",$Array[0..$_])
+    # Make the folder
+    New-Item -ItemType Directory -Path $makePath
+}
+# Test to see if path now exists
+Test-path $Path
