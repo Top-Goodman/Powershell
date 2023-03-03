@@ -1,0 +1,5 @@
+Set fso = CreateObject("Scripting.FileSystemObject")
+VBScriptRoot = fso.GetParentFolderName(Wscript.ScriptFullName)
+command = "powershell.exe -executionpolicy bypass -nologo -command "+VBScriptRoot+"\script.ps1"
+set shell = CreateObject("WScript.Shell")
+shell.Run command,0
