@@ -1,0 +1,25 @@
+function mirror ([string]$word) {
+    [int32]$count = $word.Length
+    if ($count % 2 -ge 1) { $count -= 1 }
+    $half = $count / 2
+    [array]$letters = $word.ToCharArray()
+    0..$($half - 1) | ForEach-Object {
+        if ($letters[$_] -eq $letters[$count - $_] ) {
+            $global:test = $true
+        }
+        else {
+            $global:test = $false
+        }
+    }
+    if ($global:test -eq $false) {
+        write-output "Word: $word is not same backwards/forwards"
+    }
+    Else {
+        Write-Output "Word: $word is Same backwards/forwards"
+    }
+}
+
+mirror "nine"
+mirror "mom"
+Mirror "racecar"
+mirror "works"
