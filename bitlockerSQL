@@ -1,0 +1,33 @@
+[CmdletBinding()]
+Param (
+	[Parameter(Mandatory = $true)]
+	[string]$Hostname,
+	[Parameter(Mandatory = $false)]
+	[string]$Database = 'CM_',
+	[Parameter(Mandatory = $false)]
+	[string]$Server = 'Server' ,
+	[Parameter(Mandatory = $false)]
+	[string]$Query = "select
+    s.Name0 'Hostname'
+    , a.Id
+    , b.VolumeId
+    , c.RecoveryKeyId
+    , c.RecoveryKey
+    , c.LastUpdateTime
+    from v_R_System s
+    inner join dbo.RecoveryAndHardwareCore_Machines a on a.Name = s.Name0
+    inner join dbo.RecoveryAndHardwareCore_Machines_Volumes b ON a.Id = b.MachineId
+    inner join dbo.RecoveryAndHardwareCore_Keys c ON b.VolumeId = c.VolumeId
+    Where s.Name0 like '"+$Hostname+"'"
+)
+## Dependencies
+if (Get-Module -ListAvailable -Name sqlserver) {
+Install-Module sqlserver
+}
+## Prerequisites
+if ("sqlserver" -in (Get-Module).Name) {
+    Import-Module "sqlserver"
+}
+
+## Begin
+Invoke-Sqlcmd -ServerInstance "$Server" -Database "$Database" -Query "$Query"
