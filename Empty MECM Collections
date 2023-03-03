@@ -1,0 +1,23 @@
+########################################################################
+
+# Site configuration
+$SiteCode = "" # Site code 
+$ProviderMachineName = "" # SMS Provider machine name
+
+# Import the ConfigurationManager.psd1 module 
+if($null -eq (Get-Module ConfigurationManager)) {
+    Import-Module "$($ENV:SMS_ADMIN_UI_PATH)\..\ConfigurationManager.psd1" @initParams 
+}
+
+# Connect to the site's drive if it is not already present
+if($null -eq (Get-PSDrive -Name $SiteCode -PSProvider CMSite -ErrorAction SilentlyContinue)) {
+    New-PSDrive -Name $SiteCode -PSProvider CMSite -Root $ProviderMachineName @initParams
+}
+
+# Set the current location to be the site code.
+Set-Location "$($SiteCode):\" @initParams
+
+########################################################################
+
+Get-CMCollection -CollectionType User | Where-Object { $_.MemberCount -EQ 0 -and $_.RefreshType -eq 1 } | Select-Object name | Format-list
+Get-CMCollection -CollectionType Device | Where-Object { $_.MemberCount -EQ 0 -and $_.RefreshType -eq 1 } | Select-Object name | Format-list
