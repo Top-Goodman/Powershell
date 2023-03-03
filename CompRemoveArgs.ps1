@@ -328,7 +328,7 @@ if ($Intune -or $AutoPilot -or $Azure -or $Dispose) {
         LogIt "Successful connection to Azure Cloud. Please note, times in next section are in GMT."
     }
     Catch {
-        if ($Creds.UserName -notlike "*@finra.org") {
+        if ($Creds.UserName -notlike "*@contoso.com") {
             LogIt "Issue with Initial Cloud Connection. UPN should be email address. $($Creds.UserName) was entered. Verify your UPN\password combination. Then try again."
             LogIt "$($_.Exception.Message)"
             $err++
