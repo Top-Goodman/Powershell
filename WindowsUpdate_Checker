@@ -1,0 +1,17 @@
+$MSUS = New-Object -ComObject "Microsoft.Update.Session"
+$Query = $MSUS.CreateUpdateSearcher()
+$History = $Query.GetTotalHistoryCount()
+$List= $Query.QueryHistory(0, $History) | Select-Object @{name="Status"; expression={switch($_.resultcode){1 {"In Progress"}; 2 {"Succeeded"}; 3 {"Succeeded With Errors"}; 4 {"Failed"}; 5 {"Aborted"}}}}, Title
+$KB= $List|Where-Object {$_.Title -Match "KB4549947|KB4549949|KB4550927"}
+if ($null -eq $KB) {
+Write-Host "Not Patched"
+[Environment]::Exit(0)
+}
+elseif ($KB -match "In Progress|Failure") {
+Write-Host "Pending Reboot or other failure"
+[Environment]::Exit(1)
+}
+elseif ($KB -match "Succeeded") {
+Write-Host "Updates Ran Successfully"
+[Environment]::Exit(2)
+}
