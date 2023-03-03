@@ -1,0 +1,7 @@
+New-Object psobject -Property @{
+    "Device Serial Number" = (Get-CimInstance  -Class Win32_BIOS).SerialNumber
+    "Windows Product ID" = ""
+    "Hardware Hash" = (Get-CimInstance -Namespace root/cimv2/mdm/dmmap -Class MDM_DevDetail_Ext01 -Filter "InstanceID='Ext' AND ParentID='./DevDetail'").DeviceHardwareData
+    "Group Tag" = "Department"
+    "Assigned User" = "user@contoso.com"
+}|Select-Object "Device Serial Number", "Windows Product ID", "Hardware Hash", "Group Tag", "Assigned User" | ConvertTo-CSV -NoTypeInformation | ForEach-Object {$_ -replace '"',''} | Out-File "$env:COMPUTERNAME.csv"
