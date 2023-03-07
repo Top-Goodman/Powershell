@@ -1,0 +1,194 @@
+# Include for Windows Presentaiton Framework (WPF)
+Add-Type -AssemblyName PresentationFramework
+#Add-Type -AssemblyName System.Windows.Forms
+
+Function LogIt {
+    [CmdletBinding()]
+    Param (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullorEmpty()]
+        [string]$string
+    )
+    $logtext = "$(get-date -Format "yyyy-MM-d HH:mm:ss:fff zzz") - $string" 
+    Write-Host $logText
+    $logtext | Out-File -FilePath "$LocalLog" -Encoding unicode -Append
+}
+
+Function Invoke-REST {
+    [CmdletBinding()]
+    Param (
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("Get", "Post", "Put", "Patch", "Delete")]
+        [string]$Method = "Get",
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("v1.0", "beta")]
+        [string]$Version = "v1.0",
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullorEmpty()]
+        [string]$Resource,
+        [Parameter(Mandatory = $false)]
+        [string]$parm1,
+        [Parameter(Mandatory = $false)]
+        [string]$parm2,
+        [Parameter(Mandatory = $false)]
+        [string]$parm3,
+        [Parameter(Mandatory = $false)]
+        [string]$parm4
+    )
+    $URI = "https://graph.microsoft.com/$Version/$Resource"
+    $Query = "?"
+    ($parm1, $parm2, $parm3, $parm4) | ForEach-Object {
+        if ($null -ne $_) {
+            $Query += $_ 
+        }
+        if ($Query -ne "?") { $Query += "&" }
+    }
+    $Query = $($Query -replace "&{0,}$")
+    if ($Query -ne "?") {
+        $URI += "$Query"
+    }
+    (Invoke-RestMethod -Method $Method -Uri $uri -Headers @{Authorization = "Bearer $($global:MsalToken.AccessToken)" }).value
+}
+
+function Delete-It {
+        [CmdletBinding()]
+    Param (
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullorEmpty()]
+        [string]$Path,
+        [Parameter(Mandatory = $false)]
+        [bool]$Directory
+    )
+        If (test-path $path){
+            if ($Directory){
+                Remove-Item -Recurse -Force -Confirm:$false
+            }
+            else {
+                Remove-Item -Force -Confirm:$false 
+            }
+        }
+}
+
+## Variables
+
+$global:AppId = "" # DeviceManagementConfiguration.Read.All
+$global:TenantID = ""
+# 256-bit encryption key (32bytes)
+$global:Key = (9..40) # You can change this if you want, just make sure it is either 128 bits, 192 bits, or 256 bits. 16,24, or 32 bytes. I like using an array of 32 numbers.
+$global:ClientSecretHash = "" #Paste string here after generating. Make sure value being used to Decrypt ($Key) is the same
+$regSideCar = "HKLM:\SOFTWARE\Microsoft\IntuneManagementExtension\SideCarPolicies\Scripts"
+
+
+## Dependencies
+if (Get-Module -ListAvailable -Name msal.ps) {
+}
+else { 
+    Install-Package msal.ps -Scope CurrentUser -Force 
+}
+Set-ExecutionPolicy -Scope Process -Force Unrestricted
+Import-Module MSAL.PS
+
+# Get Authentication Token using tanant, app and decrypted secret.
+$global:MsalToken = Get-MsalToken -TenantId $global:TenantId -ClientId $global:AppId -ClientSecret $([System.Runtime.InteropServices.Marshal]::PtrToStringAuto($([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($(ConvertTo-SecureString -String "$global:ClientSecretHash" -Key $global:Key)))) | ConvertTo-SecureString -AsPlainText -Force)
+# Get List of Proactive Remediations
+$global:PRs = $(Invoke-REST -Version beta -Method Get -Resource "/deviceManagement/deviceHealthScripts" -parm1 "`$select=displayName,id,publisher" | Where-Object { $_.publisher -notlike "Microsoft" } | Select-Object -Property displayName, id)
+####
+# Below Section is where GUI stuff begins
+####
+
+[xml]$XAMLWindow = @"
+<Window 
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:IntunePR_GUI"
+        Title="Intune_PR-GUI" Height="450" Width="800">
+    <Grid Background="#FF233E66">
+        <Button Name="btnDeleteReg" Content="Delete" HorizontalAlignment="Left" Height="38" Margin="400,354,0,0" VerticalAlignment="Top" Width="127" IsEnabled="False"/>
+        <Button Name="btnEval" Content="Evaluate" HorizontalAlignment="Left" Height="38" Margin="551,354,0,0" VerticalAlignment="Top" Width="127" IsEnabled="False"/>
+        <ListBox Name="lstRemediations" HorizontalAlignment="Left" Margin="80,60,0,0" Width="598" Height="170" VerticalAlignment="Top"/>
+        <TextBox Name="txtPRdn" HorizontalAlignment="Left" Margin="80,240,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="295" Height="49" VerticalScrollBarVisibility="Visible" IsReadOnly="True"/>
+        <TextBox Name="txtPRid" HorizontalAlignment="Left" Margin="384,240,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="295" Height="49" VerticalScrollBarVisibility="Visible" IsReadOnly="True"/>
+        <ProgressBar Name="pgbWait" HorizontalAlignment="Left" Height="20" Margin="80,307,0,0" VerticalAlignment="Top" Width="599" Value="0"/>
+        </Grid>
+</Window>
+"@
+
+# Create the Window Object
+$Reader = (New-Object System.Xml.XmlNodeReader $XAMLWindow)
+$Window = [Windows.Markup.XamlReader]::Load( $Reader )
+
+# Get Form Items
+# $ = $window.FindName("")
+$btnD = $window.FindName("btnDeleteReg")
+$btnE = $window.FindName("btnEval")
+$lstR = $window.FindName("lstRemediations")
+$pgbWait = $window.FindName("pgbWait")
+$txtPRid = $window.FindName("txtPRid")
+$txtPRdn = $window.FindName("txtPRdn")
+
+# Get path for this system
+$localreg = $(Get-ChildItem -Path "$regSideCar\Execution\").Name.Split('\')[-1]
+# Get all locally applied Proactive Remediations
+[array]$localPRs = $(Get-ChildItem "$regSideCar\Execution\$localreg").name | ForEach-Object { $($_.split('\')[-1]).split('_')[0] }
+# Populate list of dispaly names based off local ids 
+foreach ($PR in $PRS) {
+    if ($($PR.id) -in $localPRs) {
+        $lstR.Items.Add("$($Pr.displayName) : $($PR.id)")
+    }
+}
+
+# Event handler for clicking on itmes in list. Populate variables and enable Delete button
+$lstR.Add_SelectionChanged({
+        $pgbWait.Value=0
+        $global:PRid = $($lstR.Items[$lstR.SelectedIndex.ToString()].split(':'))[1]
+        $global:PRdn = $($lstR.Items[$lstR.SelectedIndex.ToString()].split(':'))[0]
+        $txtPRid.Text = $PRid
+        $txtPRdn.Text = $PRdn
+        $btnD.IsEnabled = 1
+    })
+
+$btnE.Add_Click({
+    # This section is future development item for when Microsoft releases full support for on demand PR evaluation
+    <#
+    # This is from microsoft learn support page. Need to investigate and test further.
+POST https://graph.microsoft.com/beta/deviceManagement/managedDevices/{managedDeviceId}/initiateOnDemandProactiveRemediation
+
+Content-type: application/json
+Content-length: 50
+
+{
+  "scriptPolicyId": "Script Policy Id value"
+}#>
+    })
+
+$btnD.Add_Click({
+        #Delete the regkeys. Yes there will by multiple in at least 2 locations (Execution and Reports) plus _X at end (*). Sometimes showing a second set of properties with the all 0 guids
+       Delete-It -path "$regSideCar\Execution\$localreg\$global:PRid*" -Force -Recurse -Confirm:$false
+        $pgbWait.Value=10
+        Remove-Item "$regSideCar\Reports\$localreg\$global:PRid*"  -Force -Recurse -Confirm:$false
+        $pgbWait.Value=15
+        Remove-Item "$regSideCar\Reports\00000000-0000-0000-0000-000000000000\$global:PRid*"  -Force -Recurse -Confirm:$false
+        $pgbWait.Value=20
+        Remove-Item "$regSideCar\Execution\00000000-0000-0000-0000-000000000000\$global:PRid*"  -Force -Recurse -Confirm:$false
+        $pgbWait.Value=25
+        #Remove from list
+        $lstR.Items.RemoveAt($lstR.SelectedIndex)
+        $pgbWait.Value=35
+        #Disable this button
+        $btnD.IsEnabled = 0
+        $pgbWait.Value=45
+        # Restart Service
+        $pgbWait.Value=50
+        Restart-Service -name "Microsoft Intune Management Extension" -Force
+        $pgbWait.Value=80
+        Do {start-sleep -seconds 1} Until ($(get-service -name "Microsoft Intune Management Extension").status -eq "Running")
+        $pgbWait.Value=100
+    })
+#===========================================================================
+# Shows the form
+#===========================================================================
+
+$Window.ShowDialog() | out-null
+
