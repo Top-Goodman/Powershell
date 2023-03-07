@@ -165,13 +165,13 @@ Content-length: 50
 
 $btnD.Add_Click({
         #Delete the regkeys. Yes there will by multiple in at least 2 locations (Execution and Reports) plus _X at end (*). Sometimes showing a second set of properties with the all 0 guids
-       Delete-It -path "$regSideCar\Execution\$localreg\$global:PRid*" -Force -Recurse -Confirm:$false
+       Delete-It -path "$regSideCar\Execution\$localreg\$global:PRid*"
         $pgbWait.Value=10
-        Remove-Item "$regSideCar\Reports\$localreg\$global:PRid*"  -Force -Recurse -Confirm:$false
+        Delete-It "$regSideCar\Reports\$localreg\$global:PRid*"
         $pgbWait.Value=15
-        Remove-Item "$regSideCar\Reports\00000000-0000-0000-0000-000000000000\$global:PRid*"  -Force -Recurse -Confirm:$false
+        Delete-It "$regSideCar\Reports\00000000-0000-0000-0000-000000000000\$global:PRid*"
         $pgbWait.Value=20
-        Remove-Item "$regSideCar\Execution\00000000-0000-0000-0000-000000000000\$global:PRid*"  -Force -Recurse -Confirm:$false
+        Delete-It "$regSideCar\Execution\00000000-0000-0000-0000-000000000000\$global:PRid*" 
         $pgbWait.Value=25
         #Remove from list
         $lstR.Items.RemoveAt($lstR.SelectedIndex)
