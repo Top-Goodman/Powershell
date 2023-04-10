@@ -48,6 +48,8 @@ Function Invoke-REST {
         [Parameter(Mandatory = $true)]
         [ValidateNotNullorEmpty()]
         [string]$Resource,
+        [Parameter(Mandatory = $true)]
+        [string]$HTTP=https://graph.microsoft.com,
         [Parameter(Mandatory = $false)]
         [string]$parm1,
         [Parameter(Mandatory = $false)]
@@ -57,7 +59,7 @@ Function Invoke-REST {
         [Parameter(Mandatory = $false)]
         [string]$parm4
     )
-    $URI = "https://graph.microsoft.com/$Version/$Resource"
+    $URI = "$HTTP/$Version/$Resource"
     $Query = "?"
     ($parm1, $parm2, $parm3, $parm4)|ForEach-Object {
     if ($null -ne $_) {
