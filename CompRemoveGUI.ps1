@@ -354,7 +354,7 @@ $btnB.add_click({
                         Try {
                             LogIt "Logged on user is: $LoggedOnUser"
                             # Create the ACE
-                            $identity = "NASDCORP\$LoggedOnUser"
+                            $identity = "CONSTOSO\$LoggedOnUser"
                             $rights = 'FullControl' #Other options: [enum]::GetValues('System.Security.AccessControl.FileSystemRights')
                             $inheritance = 'ContainerInherit, ObjectInherit' #Other options: [enum]::GetValues('System.Security.AccessControl.Inheritance')
                             $propagation = 'None' #Other options: [enum]::GetValues('System.Security.AccessControl.PropagationFlags')
