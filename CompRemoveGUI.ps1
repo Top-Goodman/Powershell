@@ -400,9 +400,10 @@ $btnB.add_click({
                             LogIt "ConfigurationManager already Imported"
                         }
                         Else {
+                                # Console installed on machine
                             #Import-Module $env:SMS_ADMIN_UI_PATH.Replace('i386', 'ConfigurationManager.psd1') -Force -ErrorAction Stop
+                                # Browse to network path of server
                             #Import-Module "\\server\share$\Program Files\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager\ConfigurationManager.psd1"  -Force -ErrorAction Stop
-                            Import-Module "\\server\ConfigurationManager_bin\ConfigurationManager.psd1" -Force -ErrorAction Stop # Might need to change this based on location and permission.
                             LogIt "ConfigurationManager successfully Imported"
                         }
                     }
