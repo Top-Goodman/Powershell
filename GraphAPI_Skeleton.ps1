@@ -49,7 +49,7 @@ Function Invoke-REST {
         [ValidateNotNullorEmpty()]
         [string]$Resource,
         [Parameter(Mandatory = $true)]
-        [string]$HTTP=https://graph.microsoft.com,
+        [string]$HTTP = "https://graph.microsoft.com",
         [Parameter(Mandatory = $false)]
         [string]$parm1,
         [Parameter(Mandatory = $false)]
