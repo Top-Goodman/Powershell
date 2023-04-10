@@ -88,6 +88,7 @@ if (Get-Module -ListAvailable -Name msal.ps) {
 else { 
     Install-Package msal.ps -Scope CurrentUser -Force 
 }
+Import-Module 
 # Get Authentication Token using tanant, app and decrypted secret.
 $MsalToken = Get-MsalToken -TenantId $TenantId -ClientId $AppId -ClientSecret $([System.Runtime.InteropServices.Marshal]::PtrToStringAuto($([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($(ConvertTo-SecureString -String "$ClientSecretHash" -Key $Key)))) | ConvertTo-SecureString -AsPlainText -Force)
 
