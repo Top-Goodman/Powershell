@@ -1,0 +1,23 @@
+[CmdletBinding()]
+Param
+(
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern("http(s)?:\/\/.*")]
+    $jExcep
+)
+# Get the Exception list file location for each user
+$(Get-Item C:\users\*\Appdata\locallow\Sun\Java\Deployment\security\exception.sites).FullName | ForEach-Object {
+# Get the values listed in each file, iterated per user
+    $global:exist = $false; Get-Content $_ | ForEach-Object {
+# Test that the item being added does not already exist
+        if ($_ -like $jExcep) { 
+# Set boolean flag (inside loop to reiterate per user)
+            $global:exist = $true 
+        }
+    }
+# Test against boolean flag
+    if (!($global:exist)) {
+# Output string to file. Encoding must be ascii or Java will ignore the entire file. Not sure if NoClobber and Append together are redundant.
+        $jExcep | Out-File -Append -Encoding ascii -FilePath $_ -NoClobber -Confirm:$false -Force 
+    }
+}
