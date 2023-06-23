@@ -2,7 +2,7 @@
 Param
 (
     [Parameter(Mandatory = $true)]
-    [ValidatePattern("http(s)?:\/\/.*")]
+    [ValidatePattern("^http(s)?:\/\/.*")] #https://regex101.com/r/PrjB8p/1
     $jExcep
 )
 # Get the Exception list file location for each user
