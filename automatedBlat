@@ -1,0 +1,39 @@
+## Variables ##
+# Comman seperated list of paths to check for files for attachment (Script below is designed to ONLY grab the newest file in directory) Leaving a value empty is fine, adding more is fine. Empty values are ignored in loop below.
+[array]$paths=@("\\networkshare\folder\reports","C:\temp\directory","")
+# File type to search above directory(ies) for 
+$fileType="zip" 
+# Path to text file containing message body
+$message="\\networkshare\folder\messages\body.txt"
+# To address
+$to="user@domain.com"
+# Mail server
+$server="smtp.server.com"
+# From Address
+$from="user@domain.com"
+# Email Subject
+$subject="Automated Message"
+# Path to blat binary
+$blat = "\\share\automate email\blat.exe"
+
+## Do not Edit Below ##
+[array]$attachment=@()
+$attach =""
+ForEach ($path in $paths) {
+    if ($path) {
+        # Sorts by date decending and selects the first item in array. If only 1 item. This may fail. I need logic to test the number of items in the directory and either take item if only 1, or use below if multiple found.
+$attachment += $((Get-ChildItem $path -Filter "*.$fileType"|Sort-Object -Property LastWriteTime -Descending)[0]).FullName
+}
+}
+# Used to build argument list in next step for multiple attachments
+foreach ($file in $attachment) {
+$attach += " -attach `"$file`""
+}
+# Remove space at beginning. Might not be needed 
+$attach = $attach -replace "^."
+# Build arguments into one variable
+$arguments =@"
+"$message" -t $to -server $server -f $from -s "$subject" ${attach}
+"@
+# Launch command using blat
+$(Start-Process $blat -argumentlist $arguments) -join ' '
