@@ -5,3 +5,22 @@ function get-guid($path){(Get-AppLockerFileInformation "$path").Publisher.Binary
 # Check AD for user by partial name
 function get-who($search){get-aduser -filter "name -like `"*$search*`""}
 # ex: get-who -search "partialName"
+
+function Get-ADUserPasswordInfo {
+      param (
+          [string]$NameFilter
+      )
+
+      # Add wildcards around the name filter
+      $NameFilter = "*$NameFilter*"
+
+      Get-ADUser -Filter { Name -like $NameFilter } -Properties DisplayName, SamAccountName, Enabled, PwdLastSet, msDS-UserPasswordExpiryTimeComputed |
+      Select-Object -Property DisplayName,
+      SamAccountName,
+ Enabled,
+ @{Name = "Password Set Time"; Expression = { [datetime]::FromFileTime($_.PwdLastSet) } },
+      @{Name = "Days Since Password Set"; Expression = { (New-TimeSpan -Start ([datetime]::FromFileTime($_.PwdLastSet)) -End (Get-Date)).Days } },
+      @{Name = "Password Expire Time"; Expression = { [datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed") } },
+      @{Name = "Days Until Password Expire"; Expression = { (New-TimeSpan -Start (Get-Date) -End ([datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed"))).Days } }
+  }
+# ex: Get-ADUserPasswordInfo --NameFilter partialName
