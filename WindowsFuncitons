@@ -1,5 +1,5 @@
 # Get GUID of an MSI installer without needing to install it first
-function get-guid($path){(Get-AppLockerFileInformation "$path").Publisher.BinaryName
+function get-guid($path){(Get-AppLockerFileInformation "$path").Publisher.BinaryName}
 # ex:  get-guid -path "C:\path\to\msi.msi"
 
 # Check AD for user by partial name
