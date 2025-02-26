@@ -15,9 +15,7 @@ function Get-ADUserPasswordInfo {
       $NameFilter = "*$NameFilter*"
 
       Get-ADUser -Filter { Name -like $NameFilter } -Properties DisplayName, SamAccountName, Enabled, PwdLastSet, msDS-UserPasswordExpiryTimeComputed |
-      Select-Object -Property DisplayName,
-      SamAccountName,
- Enabled,
+      Select-Object -Property Name, DisplayName, SamAccountName, Enabled,DistinguishedName,SID,
  @{Name = "Password Set Time"; Expression = { [datetime]::FromFileTime($_.PwdLastSet) } },
       @{Name = "Days Since Password Set"; Expression = { (New-TimeSpan -Start ([datetime]::FromFileTime($_.PwdLastSet)) -End (Get-Date)).Days } },
       @{Name = "Password Expire Time"; Expression = { [datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed") } },
