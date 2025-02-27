@@ -22,3 +22,7 @@ function Get-ADUserPasswordInfo {
     @{Name = "Days Until Password Expire"; Expression = { (New-TimeSpan -Start (Get-Date) -End ([datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed"))).Days } }
 }
 # ex: Get-ADUserPasswordInfo --NameFilter partialName
+
+
+# Not even sure if this one is a function, I just use it sometimes
+Get-Process powershell|?{$_.id -notlike $PID}|Stop-Process -Force
