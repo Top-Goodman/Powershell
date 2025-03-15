@@ -28,4 +28,4 @@ function Get-ADUserPasswordInfo {
 
 Get-Process powershell|?{$_.id -notlike $PID}|Stop-Process -Force
 
-Get-PSDrive C| Select-Object Name, @{Name="Used (GB)"; Expression={[math]::Round($drive.Used / 1GB, 2)}}, @{Name="Free (GB)"; Expression={[math]::Round($drive.Free / 1GB, 2)}}
+Get-PSDrive C| Select-Object Name, @{Name="Used (GB)"; Expression={[math]::Round($_.Used / 1GB, 2)}}, @{Name="Free (GB)"; Expression={[math]::Round($_.Free / 1GB, 2)}}
