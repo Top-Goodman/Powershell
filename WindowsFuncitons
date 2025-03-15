@@ -24,5 +24,8 @@ function Get-ADUserPasswordInfo {
 # ex: Get-ADUserPasswordInfo --NameFilter partialName
 
 
-# Not even sure if this one is a function, I just use it sometimes
+# Not making into functions, I just use them sometimes
+
 Get-Process powershell|?{$_.id -notlike $PID}|Stop-Process -Force
+
+Get-PSDrive C| Select-Object Name, @{Name="Used (GB)"; Expression={[math]::Round($drive.Used / 1GB, 2)}}, @{Name="Free (GB)"; Expression={[math]::Round($drive.Free / 1GB, 2)}}
