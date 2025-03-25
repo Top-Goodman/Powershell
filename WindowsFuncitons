@@ -14,12 +14,13 @@ function Get-ADUserPasswordInfo {
     # Add wildcards around the name filter
     $NameFilter = "*$NameFilter*"
 
-    Get-ADUser -Filter { Name -like $NameFilter -or SamAccountName -like $NameFilter -or DisplayName -like $NameFilter } -Properties DisplayName, SamAccountName, Enabled, PwdLastSet, msDS-UserPasswordExpiryTimeComputed |
+    Get-ADUser -Filter { Name -like $NameFilter -or SamAccountName -like $NameFilter -or DisplayName -like $NameFilter } -Properties DisplayName, SamAccountName, Enabled, PwdLastSet, msDS-UserPasswordExpiryTimeComputed,LockedOut |
     Select-Object -Property Name, DisplayName, SamAccountName, Enabled, DistinguishedName, SID,
     @{Name = "Password Set Time"; Expression = { [datetime]::FromFileTime($_.PwdLastSet) } },
     @{Name = "Days Since Password Set"; Expression = { (New-TimeSpan -Start ([datetime]::FromFileTime($_.PwdLastSet)) -End (Get-Date)).Days } },
     @{Name = "Password Expire Time"; Expression = { [datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed") } },
-    @{Name = "Days Until Password Expire"; Expression = { (New-TimeSpan -Start (Get-Date) -End ([datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed"))).Days } }
+    @{Name = "Days Until Password Expire"; Expression = { (New-TimeSpan -Start (Get-Date) -End ([datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed"))).Days } },
+    @{Name = "Account Locked"; Expression = { $_.LockedOut } }
 }
 # ex: Get-ADUserPasswordInfo --NameFilter partialName
 
