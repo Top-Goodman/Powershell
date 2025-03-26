@@ -2,10 +2,11 @@
 function get-guid($path){(Get-AppLockerFileInformation "$path").Publisher.BinaryName}
 # ex:  get-guid -path "C:\path\to\msi.msi"
 
-# Check AD for user by partial name
+# Check AD for user by partial name, I mostly use the below now and stopped using this.
 function get-who($search){get-aduser -filter "name -like `"*$search*`""}
 # ex: get-who -search "partialName"
 
+# Get a bunch of info on a user and their account\password. I sometimes even do this just to confirm the username is the one I am thinking of. The SID is helpful for HKEY_Users stuff (not HKCU)
 function Get-ADUserPasswordInfo {
     param (
         [string]$NameFilter
@@ -27,6 +28,11 @@ function Get-ADUserPasswordInfo {
 
 # Not making into functions, I just use them sometimes
 
+# Kill all powershell besides the one I am typing in. WIth VS code running, I'll need to restart that or get more creative.
 Get-Process powershell|?{$_.id -notlike $PID}|Stop-Process -Force
 
+# Get the free space and total disk space in GB
 Get-PSDrive C| Select-Object Name, @{Name="Used (GB)"; Expression={[math]::Round($_.Used / 1GB, 2)}}, @{Name="Free (GB)"; Expression={[math]::Round($_.Free / 1GB, 2)}}
+
+# Open my powershell profile to add commands to run every time I start new session. I usually just add a bunch of: echo "& 'C:\path\to\program\I\run\frequently'"
+ notepad "C:\Users\$($($(whoami).split('\'))[1])\Documents\WindowsPowerShell\profile.ps1"
