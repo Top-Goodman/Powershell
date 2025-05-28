@@ -30,8 +30,55 @@ function Get-ADUserPasswordInfo {
 }
 # ex: Get-ADUserPasswordInfo --NameFilter partialName
 
+# See processes and ports with netstat yet filtered only to the process I care about, with an additional column for owner. Useful for troubleshooting applications that use ports on multi-user environments
+function Get-NetstatWithOwner {
+    param (
+        [string]$ProcessName
+    )
 
-# Not making into functions, I just use them sometimes
+    # Define the header
+    $header = "Proto LocalAddress ForeignAddress State PID Owner"
+
+    # Get the PIDs for the specified process
+    $pids = Get-Process -Name $ProcessName | Select-Object -ExpandProperty Id
+
+    # Initialize an array to store the custom objects
+    $netstatResults = @()
+
+    # For each PID, run netstat and filter the results
+    foreach ($processId in $pids) {
+        netstat -ano | findstr $processId | ForEach-Object {
+            # Split the output into columns and adjust indices
+            $columns = $_ -split "\s+"
+            
+            # Get the owner of the process
+            $process = Get-CimInstance Win32_Process -Filter "ProcessId = $processId"
+            $owner = Invoke-CimMethod -InputObject $process -MethodName GetOwner
+            
+            # Create a custom object
+            $netstatObject = [PSCustomObject]@{
+                Proto          = $columns[1]
+                LocalAddress   = $columns[2]
+                ForeignAddress = $columns[3]
+                State          = $columns[4]
+                PID            = $columns[5]
+                Owner          = "$($owner.Domain)\$($owner.User)"
+            }
+            
+            # Add the custom object to the array
+            $netstatResults += $netstatObject
+        }
+    }
+
+    # Output the custom objects
+    $netstatResults | Sort-Object PID | Format-Table -AutoSize
+}
+
+# Example usage
+Get-NetstatWithOwner -ProcessName "ndOffice"
+
+
+## Not making into functions, I just use them sometimes
 
 # Kill all powershell besides the one I am typing in. WIth VS code running, I'll need to restart that or get more creative.
 Get-Process powershell|?{$_.id -notlike $PID}|Stop-Process -Force
