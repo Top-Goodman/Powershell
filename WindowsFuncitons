@@ -6,37 +6,18 @@ function get-guid($path){(Get-AppLockerFileInformation "$path").Publisher.Binary
 function get-who($search){get-aduser -filter "name -like `"*$search*`""}
 # ex: get-who -search "partialName"
 
-# Get a bunch of info on a user and their account\password. I sometimes even do this just to confirm the username is the one I am thinking of. The SID is helpful for HKEY_Users stuff (not HKCU)
-function Get-ADUserPasswordInfo {
-    param (
-        [string]$NameFilter
-    )
-
-    # Add wildcards around the name filter
-    $NameFilter = "*$NameFilter*"
-
-    Get-ADUser -Filter { Name -like $NameFilter -or SamAccountName -like $NameFilter -or DisplayName -like $NameFilter } -Properties DisplayName, SamAccountName, Enabled, PwdLastSet, msDS-UserPasswordExpiryTimeComputed,LockedOut,TargetAddress |
-    Select-Object -Property Name, DisplayName, SamAccountName,
-    @{Name = "UPN"; Expression = { $_.UserPrincipalName } }, 
-    Enabled, 
-    DistinguishedName, 
-    @{Name = "Mailbox Target"; Expression = { $_.TargetAddress } }, 
-    SID,
-    @{Name = "Password Set Time"; Expression = { [datetime]::FromFileTime($_.PwdLastSet) } },
-    @{Name = "Days Since Password Set"; Expression = { (New-TimeSpan -Start ([datetime]::FromFileTime($_.PwdLastSet)) -End (Get-Date)).Days } },
-    @{Name = "Password Expire Time"; Expression = { [datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed") } },
-    @{Name = "Days Until Password Expire"; Expression = { (New-TimeSpan -Start (Get-Date) -End ([datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed"))).Days } },
-    @{Name = "Account Locked"; Expression = { $_.LockedOut } }
-}
-# ex: Get-ADUserPasswordInfo --NameFilter partialName
-
-# See processes and ports with netstat yet filtered only to the process I care about, with an additional column for owner. Useful for troubleshooting applications that use ports on multi-user environments
 function Get-NetstatWithOwner {
     param (
         [string]$ProcessName,
 
         [ValidateSet("Proto", "LocalAddress", "ForeignAddress", "State", "PID", "Owner")]
-        [string]$SortBy = "LocalAddress"
+        [string]$SortBy = "LocalAddress",
+
+        [switch]$AllStates,
+
+        [string]$LogPath,
+
+        [switch]$ClearLogFirst
     )
 
     # Get the PIDs for the specified process
@@ -54,6 +35,13 @@ function Get-NetstatWithOwner {
             $columns = $_ -split "\s+"
 
             if ($columns.Count -ge 5) {
+                $state = $columns[4]
+
+                # Default: only LISTENING unless -AllStates is used
+                if (-not $AllStates.IsPresent -and $state -ne "LISTENING") {
+                    return
+                }
+
                 $process = Get-CimInstance Win32_Process -Filter "ProcessId = $processId"
                 $owner = Invoke-CimMethod -InputObject $process -MethodName GetOwner
 
@@ -61,7 +49,7 @@ function Get-NetstatWithOwner {
                     Proto          = $columns[1]
                     LocalAddress   = $columns[2]
                     ForeignAddress = $columns[3]
-                    State          = $columns[4]
+                    State          = $state
                     PID            = $columns[5]
                     Owner          = "$($owner.Domain)\$($owner.User)"
                 }
@@ -71,7 +59,42 @@ function Get-NetstatWithOwner {
         }
     }
 
-    $netstatResults | Sort-Object $SortBy | Format-Table -AutoSize
+    $sortedResults = $netstatResults | Sort-Object $SortBy
+
+    # Output to screen
+    $sortedResults | Format-Table -AutoSize
+
+    # Output to file if LogPath is provided
+    if ($LogPath) {
+        $isDirectory = Test-Path $LogPath -PathType Container
+        $finalLogPath = $LogPath
+
+        if ($isDirectory -or (-not (Split-Path $LogPath -Leaf).Contains('.'))) {
+            # Treat as directory or missing filename
+            $directory = $LogPath
+            $fileName = "$ProcessName-$env:COMPUTERNAME_netstat.log"
+            $finalLogPath = Join-Path $directory $fileName
+        } else {
+            $directory = Split-Path $LogPath -Parent
+        }
+
+        if (-not (Test-Path $directory)) {
+            New-Item -Path $directory -ItemType Directory -Force | Out-Null
+        }
+
+        if ($ClearLogFirst.IsPresent -and (Test-Path $finalLogPath)) {
+            Remove-Item $finalLogPath -Force
+        }
+
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $hostname = $env:COMPUTERNAME
+        $header = "Netstat Report - $timestamp - Host: $hostname`n"
+
+        $header | Out-File -FilePath $finalLogPath -Encoding UTF8 -Append
+        $sortedResults | Out-String | Out-File -FilePath $finalLogPath -Append -Encoding UTF8
+
+        Write-Host "Output logged to: $finalLogPath"
+    }
 }
 
 Get-NetstatWithOwner -ProcessName "processName" -SortBy Owner
