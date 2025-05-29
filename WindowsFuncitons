@@ -74,7 +74,7 @@ function Get-NetstatWithOwner {
     $netstatResults | Sort-Object $SortBy | Format-Table -AutoSize
 }
 
-Get-NetstatWithOwner -ProcessName "Applicaiton.exe" -SortBy Owner
+Get-NetstatWithOwner -ProcessName "processName" -SortBy Owner
 
 
 ## Not making into functions, I just use them sometimes
