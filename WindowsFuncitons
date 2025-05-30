@@ -6,6 +6,31 @@ function get-guid($path){(Get-AppLockerFileInformation "$path").Publisher.Binary
 function get-who($search){get-aduser -filter "name -like `"*$search*`""}
 # ex: get-who -search "partialName"
 
+# Get a bunch of info on a user and their account\password. I sometimes even do this just to confirm the username is the one I am thinking of. The SID is helpful for HKEY_Users stuff (not HKCU)
+function Get-ADUserPasswordInfo {
+    param (
+        [string]$NameFilter
+    )
+
+    # Add wildcards around the name filter
+    $NameFilter = "*$NameFilter*"
+
+    Get-ADUser -Filter { Name -like $NameFilter -or SamAccountName -like $NameFilter -or DisplayName -like $NameFilter } -Properties DisplayName, SamAccountName, Enabled, PwdLastSet, msDS-UserPasswordExpiryTimeComputed,LockedOut,TargetAddress |
+    Select-Object -Property Name, DisplayName, SamAccountName,
+    @{Name = "UPN"; Expression = { $_.UserPrincipalName } }, 
+    Enabled, 
+    DistinguishedName, 
+    @{Name = "Mailbox Target"; Expression = { $_.TargetAddress } }, 
+    SID,
+    @{Name = "Password Set Time"; Expression = { [datetime]::FromFileTime($_.PwdLastSet) } },
+    @{Name = "Days Since Password Set"; Expression = { (New-TimeSpan -Start ([datetime]::FromFileTime($_.PwdLastSet)) -End (Get-Date)).Days } },
+    @{Name = "Password Expire Time"; Expression = { [datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed") } },
+    @{Name = "Days Until Password Expire"; Expression = { (New-TimeSpan -Start (Get-Date) -End ([datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed"))).Days } },
+    @{Name = "Account Locked"; Expression = { $_.LockedOut } }
+}
+# ex: Get-ADUserPasswordInfo --NameFilter partialName
+
+# See processes and ports with netstat yet filtered only to the process I care about, with an additional column for owner. Useful for troubleshooting applications that use ports on multi-user environment
 function Get-NetstatWithOwner {
     param (
         [string]$ProcessName,
