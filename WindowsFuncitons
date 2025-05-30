@@ -12,11 +12,8 @@ function Get-NetstatWithOwner {
 
         [ValidateSet("Proto", "LocalAddress", "ForeignAddress", "State", "PID", "Owner")]
         [string]$SortBy = "LocalAddress",
-
         [switch]$AllStates,
-
         [string]$LogPath,
-
         [switch]$ClearLogFirst
     )
 
@@ -72,7 +69,7 @@ function Get-NetstatWithOwner {
         if ($isDirectory -or (-not (Split-Path $LogPath -Leaf).Contains('.'))) {
             # Treat as directory or missing filename
             $directory = $LogPath
-            $fileName = "$ProcessName-$env:COMPUTERNAME_netstat.log"
+            $fileName = "$ProcessName-$env:COMPUTERNAME-netstat.log"
             $finalLogPath = Join-Path $directory $fileName
         } else {
             $directory = Split-Path $LogPath -Parent
