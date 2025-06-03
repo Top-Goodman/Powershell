@@ -113,7 +113,7 @@ function Get-NetstatWithOwner {
         $header = "Netstat Report - $timestamp - Host: $hostname`n"
 
         $header | Out-File -FilePath $finalLogPath -Encoding UTF8 -Append
-        $sortedResults | Out-String | Out-File -FilePath $finalLogPath -Append -Encoding UTF8
+        $sortedResults | Format-Table -AutoSize | Out-String | Out-File -FilePath $finalLogPath -Append -Encoding UTF8
 
         Write-Host "Output logged to: $finalLogPath"
     }
