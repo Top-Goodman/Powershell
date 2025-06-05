@@ -1,0 +1,90 @@
+# See processes and ports with netstat yet filtered only to the process I care about, with an additional column for owner. Useful for troubleshooting applications that use ports on multi-user environment
+function Get-NetstatWithOwner {
+    param (
+        [string]$ProcessName,
+
+        [ValidateSet("Proto", "LocalAddress", "ForeignAddress", "State", "PID", "Owner")]
+        [string]$SortBy = "LocalAddress",
+        [switch]$AllStates,
+        [string]$LogPath,
+        [switch]$ClearLogFirst
+    )
+
+    # Get the PIDs for the specified process
+    $pids = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id
+
+    if (-not $pids) {
+        Write-Warning "No process found with the name '$ProcessName'."
+        return
+    }
+
+    $netstatResults = @()
+
+    foreach ($processId in $pids) {
+        netstat -ano | findstr $processId | ForEach-Object {
+            $columns = $_ -split "\s+"
+
+            if ($columns.Count -ge 5) {
+                $state = $columns[4]
+
+                # Default: only LISTENING unless -AllStates is used
+                if (-not $AllStates.IsPresent -and $state -ne "LISTENING") {
+                    return
+                }
+
+                $process = Get-CimInstance Win32_Process -Filter "ProcessId = $processId"
+                $owner = Invoke-CimMethod -InputObject $process -MethodName GetOwner
+
+                $netstatObject = [PSCustomObject]@{
+                    Proto          = $columns[1]
+                    LocalAddress   = $columns[2]
+                    ForeignAddress = $columns[3]
+                    State          = $state
+                    PID            = $columns[5]
+                    Owner          = "$($owner.Domain)\$($owner.User)"
+                }
+
+                $netstatResults += $netstatObject
+            }
+        }
+    }
+
+    $sortedResults = $netstatResults | Sort-Object $SortBy
+
+    # Output to screen
+    $sortedResults | Format-Table -AutoSize
+
+    # Output to file if LogPath is provided
+    if ($LogPath) {
+        $isDirectory = Test-Path $LogPath -PathType Container
+        $finalLogPath = $LogPath
+
+        if ($isDirectory -or (-not (Split-Path $LogPath -Leaf).Contains('.'))) {
+            # Treat as directory or missing filename
+            $directory = $LogPath
+            $fileName = "$ProcessName-$env:COMPUTERNAME-netstat.log"
+            $finalLogPath = Join-Path $directory $fileName
+        } else {
+            $directory = Split-Path $LogPath -Parent
+        }
+
+        if (-not (Test-Path $directory)) {
+            New-Item -Path $directory -ItemType Directory -Force | Out-Null
+        }
+
+        if ($ClearLogFirst.IsPresent -and (Test-Path $finalLogPath)) {
+            Remove-Item $finalLogPath -Force
+        }
+
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $hostname = $env:COMPUTERNAME
+        $header = "Netstat Report - $timestamp - Host: $hostname`n"
+
+        $header | Out-File -FilePath $finalLogPath -Encoding UTF8 -Append
+        $sortedResults | Format-Table -AutoSize | Out-String | Out-File -FilePath $finalLogPath -Append -Encoding UTF8
+
+        Write-Host "Output logged to: $finalLogPath"
+    }
+}
+
+Get-NetstatWithOwner -ProcessName "processName" -SortBy Owner
