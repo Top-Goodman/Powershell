@@ -1,0 +1,3 @@
+# Get GUID of an MSI installer without needing to install it first
+function get-guid($path){(Get-AppLockerFileInformation "$path").Publisher.BinaryName}
+get-guid -path "C:\path\to\msi.msi"
