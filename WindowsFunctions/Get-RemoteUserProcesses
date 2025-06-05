@@ -1,0 +1,50 @@
+function Get-RemoteUserProcesses {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$RemoteServer,
+
+        [string]$OutputPath = $null
+    )
+  
+    if (-not $OutputPath) {
+        $OutputPath = "C:\Temp\$RemoteServer.csv"
+    }
+  
+    # Run remotely and map sessions to users
+    $results = Invoke-Command -ComputerName $RemoteServer -ScriptBlock {
+        $sessionMap = @{}
+        quser | ForEach-Object {
+            if ($_ -match "^\s*(\S+)\s+(\S+)\s+(\d+)\s+") {
+                $username = $matches[1]
+                $sessionId = $matches[3]
+                $sessionMap[$sessionId] = $username
+            }
+        }
+
+        Get-Process | ForEach-Object {
+            $user = $sessionMap["$($_.SessionId)"]
+            [PSCustomObject]@{
+                Username    = $user
+                SessionId   = $_.SessionId
+                ProcessName = $_.ProcessName
+                PID         = $_.Id
+            }
+        } | Where-Object { $_.Username }
+    }
+    # Sort by Username
+    $results = $results | Sort-Object Username
+    # Show in table
+    $results | Format-Table -AutoSize
+    # Export CSV
+    $results | Export-Csv -Path $OutputPath -NoTypeInformation
+    Write-Output "Saved to: $OutputPath"
+    # Beep alert (300 Hz, 300 ms)
+    [console]::beep(300, 300)
+}
+
+# Uses default output path: C:\Temp\<RemoteServer>.csv
+Get-RemoteUserProcesses -RemoteServer "CompterName"
+
+# Overrides output path
+Get-RemoteUserProcesses -RemoteServer "ComputerName" -OutputPath "C:\Reports\myprocess.csv"
