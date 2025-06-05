@@ -1,3 +1,15 @@
+## Not making into functions, I just use them sometimes
+
+# Kill all powershell besides the one I am typing in. WIth VS code running, I'll need to restart that or get more creative.
+Get-Process powershell|?{$_.id -notlike $PID}|Stop-Process -Force
+
+# Get the free space and total disk space in GB
+Get-PSDrive C| Select-Object Name, @{Name="Used (GB)"; Expression={[math]::Round($_.Used / 1GB, 2)}}, @{Name="Free (GB)"; Expression={[math]::Round($_.Free / 1GB, 2)}}
+
+# Open my powershell profile to add commands to run every time I start new session. I usually just add a bunch of: echo "& 'C:\path\to\program\I\run\frequently'"
+ notepad "C:\Users\$($($(whoami).split('\'))[1])\Documents\WindowsPowerShell\profile.ps1"
+
+
 # Get GUID of an MSI installer without needing to install it first
 function get-guid($path){(Get-AppLockerFileInformation "$path").Publisher.BinaryName}
 # ex:  get-guid -path "C:\path\to\msi.msi"
@@ -167,13 +179,4 @@ WHERE
 
 Get-SqlQuery -Query $customQuery
 
-## Not making into functions, I just use them sometimes
 
-# Kill all powershell besides the one I am typing in. WIth VS code running, I'll need to restart that or get more creative.
-Get-Process powershell|?{$_.id -notlike $PID}|Stop-Process -Force
-
-# Get the free space and total disk space in GB
-Get-PSDrive C| Select-Object Name, @{Name="Used (GB)"; Expression={[math]::Round($_.Used / 1GB, 2)}}, @{Name="Free (GB)"; Expression={[math]::Round($_.Free / 1GB, 2)}}
-
-# Open my powershell profile to add commands to run every time I start new session. I usually just add a bunch of: echo "& 'C:\path\to\program\I\run\frequently'"
- notepad "C:\Users\$($($(whoami).split('\'))[1])\Documents\WindowsPowerShell\profile.ps1"
