@@ -1,0 +1,47 @@
+# Run SQL Query Wrapped in PowerShell, assumes you have access to that database, and is using windows authentication. Nothing baked into the script for username\password authentication to the database itself. That's probably something I can proabbly easily add later if needed as optional variables that are used if specified and defaults to windows if ignored.
+
+function Get-SqlQuery {
+    [CmdletBinding()]
+    param (
+        [string]$Server = "YourServerInstance",
+        [string]$Database = "YourDatabase",
+        [Parameter(Mandatory = $true)]
+        [string]$Query
+    )
+
+    # Ensure the SqlServer module is installed
+    if (-not (Get-Module -ListAvailable -Name SqlServer)) {
+        Install-Module -Name SqlServer -Scope CurrentUser -Force
+    }
+
+    # Import the SqlServer module if not already loaded
+    if (-not ("SqlServer" -in (Get-Module).Name)) {
+        Import-Module SqlServer
+    }
+
+    # Run the SQL query
+    try {
+        Invoke-Sqlcmd -ServerInstance $Server -Database $Database -Query $Query -Encrypt Optional
+    }
+    catch {
+        Write-Error "SQL query failed: $_"
+    }
+}
+
+# Example usage (All SCCM Clients that have not checked in for 30 days, assums you have access to the SCCM database to run SQL queries against):
+$customQuery = @"
+SELECT 
+    sys.Name0 AS 'Computer Name',
+    FORMAT(sys.Last_Logon_Timestamp0, 'MMMM dd, yyyy') AS 'Login Date'
+FROM 
+    V_R_System sys
+INNER JOIN 
+    v_FullCollectionMembership AS FCM ON sys.ResourceID = FCM.ResourceID
+INNER JOIN 
+    v_Collection AS Col ON FCM.CollectionID = Col.CollectionID
+WHERE 
+    Col.Name LIKE '_All Windows Workstations'
+    AND DATEDIFF(DAY, sys.Last_Logon_Timestamp0, GETDATE()) > 30;
+"@
+
+Get-SqlQuery -Query $customQuery
