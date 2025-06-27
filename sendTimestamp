@@ -1,0 +1,93 @@
+# Load the necessary assemblies
+Add-Type -AssemblyName Microsoft.VisualBasic
+Add-Type -AssemblyName System.Windows.Forms
+
+# Function to send the current timestamp to the specified window
+function Send-Timestamp {
+    param (
+        [string]$winTitle, # When using Interactive, this is suppressed. To get current window titles, run: Get-Process | Where-Object { $_.MainWindowTitle }|Select-object MainWindowTitle
+        [ValidateRange(1, [int]::MaxValue)]
+        [int]$interval = 300, # Default interval is 300 seconds, or can specify a new time in seconds
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]$iterations = 1, # Default is to run once, 0 means run indefinitely, or specify desired number of iterations for loop.
+        [switch]$Interactive   # Default is false if not included. When included, will overwrite anything assigned to winTitle at function call.
+    )
+
+    # Check if both -winTitle and -Interactive are specified
+    if ($Interactive.IsPresent -and $MyInvocation.BoundParameters.ContainsKey('winTitle')) {
+        Write-Warning "Both -winTitle and -Interactive are specified. Interactive mode will take precedence."
+        $winTitle = $null
+    }
+
+    # Initialize the local index variable for process selection
+    $index = 1
+
+    # If -Interactive is specified, prompt the user to select a window
+    if ($Interactive) {
+        # Get all processes with a window title
+        $processes = Get-Process | Where-Object { $_.MainWindowTitle }
+
+        # Create a list of custom objects with an index
+        $indexedProcesses = $processes | ForEach-Object {
+            [PSCustomObject]@{
+                Index           = $index++
+                Id              = $_.Id
+                ProcessName     = $_.ProcessName
+                MainWindowTitle = $_.MainWindowTitle
+            }
+        }
+
+        # Display the processes in a table format
+        $indexedProcesses | Format-Table -AutoSize
+
+        # Prompt the user to select a window
+        $selection = Read-Host "Enter the number of the window you want to use"
+        $selectedProcess = $indexedProcesses | Where-Object { $_.Index -eq $selection }
+        $winTitle = $selectedProcess.MainWindowTitle
+    }
+
+    # Ensure winTitle is provided if not in interactive mode
+    if (-not $Interactive.IsPresent -and -not $winTitle) {
+        throw "The -winTitle parameter is mandatory when -Interactive is not used."
+    }
+    
+    # Calculate and display the total time and iterations
+    if ($iterations -eq 0) {
+        Write-Host "The script will run indefinitely. You can stop it with Ctrl+C."
+    }
+    else {
+        $totalTimeSeconds = ($interval * $iterations) + (0.3 * $iterations)
+        $totalTimeMinutes = [math]::Round($totalTimeSeconds / 60, 2)
+        $endTime = (Get-Date).AddSeconds($totalTimeSeconds)
+        Write-Host "The script will run for $iterations iterations, which will take approximately $totalTimeMinutes minutes."
+        Write-Host "Estimated end time: $endTime"
+    }
+
+    # Determine the number of iterations
+    $currentIteration = 0
+    while ($iterations -eq 0 -or $currentIteration -lt $iterations) {    
+        try {
+            # Get the current timestamp
+            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            # Activate the window with the specified title
+            [Microsoft.VisualBasic.Interaction]::AppActivate($winTitle)
+            # Wait for the window to become active. This is not controled by interval variable
+            Start-Sleep -Milliseconds 300
+            # Send the timestamp to the active window
+            [System.Windows.Forms.SendKeys]::SendWait($timestamp)
+            #  Send an Enter keypress
+            [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+            # Wait for the specified interval before sending the next timestamp
+            Start-Sleep -Seconds $interval
+            # Increment the iteration counter
+            $currentIteration++
+        }
+        catch {
+            Write-Error "An error occurred: $_"
+        }
+    }
+}
+
+# Examples of calling the function  with parameters
+Send-Timestamp -winTitle "*Untitled - Notepad" -interval 300 -iterations 10
+Send-Timestamp -interval 30 -iterations 0 -interactive
