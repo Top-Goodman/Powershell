@@ -1,0 +1,19 @@
+# Get a bunch of info on a computer and memberships. 
+function Get-ADComputerInfo {
+    param (
+        [string]$HostFilter
+    )
+
+    # Add wildcards around the name filter
+    $HostFilter = "*$HostFilter*"
+
+    Get-ADComputer -Filter { Name -like $HostFilter -or SamAccountName -like $HostFilter -or DNSHostName -like $HostFilter } -Properties DisplayName, SamAccountName, LastLogonDate, Enabled, Modified, CanonicalName, CN, Description, DistinguishedName, DNSHostName, IPv4Address, KerberosEncryptionType, LockedOut, MemberOf, OperatingSystem , OperatingSystemVersion, PasswordExpired, PasswordLastSet, SID, Created |
+    Select-Object -Property Name, 
+    @{Name = "Common Name"; Expression = { $_.CN } }, 
+    DisplayName, SamAccountName, DNSHostName, CanonicalName, DistinguishedName,UserPrincipalName,Enabled,LockedOut,LastLogonDate,IPv4Address,OperatingSystem,OperatingSystemVersion,PasswordExpired,PasswordLastSet,MemberOf,Description,ObjectClass,ObjectGUID,KerberosEncryptionType,SID,Modified,Created
+}
+
+Set-Alias -Name Get-Comp -Value Get-ADComputerInfo
+
+# ex: Get-ADComputerInfo -HostFilter partialName
+# ex: Get-Comp -HostFilter partialName
