@@ -11,7 +11,7 @@ function Get-ADComputerInfo {
     Select-Object -Property Name, 
     @{Name = "Common Name"; Expression = { $_.CN } }, 
     DisplayName, SamAccountName, DNSHostName, CanonicalName, DistinguishedName,UserPrincipalName,Enabled,LockedOut,LastLogonDate,IPv4Address,OperatingSystem,OperatingSystemVersion,PasswordExpired,PasswordLastSet,
-    @{Name = "AD Groups"; Expression = { $_.MemberOf } },
+    @{Name = "AD Groups"; Expression = { $_.MemberOf -join "`n" } },
     Description,ObjectClass,ObjectGUID,KerberosEncryptionType,SID,Modified,Created
 }
 
