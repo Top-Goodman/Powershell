@@ -1,0 +1,210 @@
+param(
+    [Parameter(Mandatory=$true)]
+    [string[]]$Urls,
+
+    [Parameter(Mandatory=$true)]
+    [string]$OutputPath
+)
+
+Add-Type -AssemblyName System.Web
+
+Write-Host "Output file: $OutputPath"
+
+# ---------------- GEN CON DATE CALCULATION ----------------
+
+$year = (Get-Date).Year
+
+# August 4 of current year
+$aug4 = Get-Date -Year $year -Month 8 -Day 4
+
+# Previous Wednesday on or before Aug 4
+$daysBack = ([int]$aug4.DayOfWeek - 3 + 7) % 7
+$genConStart = $aug4.AddDays(-$daysBack)
+
+# Wed–Sat event window
+$GenConDays = @{
+    "Wednesday" = $genConStart
+    "Thursday"  = $genConStart.AddDays(1)
+    "Friday"    = $genConStart.AddDays(2)
+    "Saturday"  = $genConStart.AddDays(3)
+    "Sunday"    = $genConStart.AddDays(4)  # some events spill to Sunday
+}
+
+# ---------------- VENUE MAP ----------------
+
+$VenueMap = @{
+    "Marriott" = "JW Marriott Indianapolis, 10 S West St, Indianapolis, IN 46204, USA"
+    "JW Marriott Indianapolis" = "JW Marriott Indianapolis, 10 S West St, Indianapolis, IN 46204, USA"
+    "Hyatt Regency Indianapolis" = "Hyatt Regency Indianapolis, 1 S Capitol Ave, Indianapolis, IN 46204, USA"
+    "Lucas Oil Stadium" = "Lucas Oil Stadium, 500 S Capitol Ave, Indianapolis, IN 46225, USA"
+    "The Westin Indianapolis" = "The Westin Indianapolis, 241 W Washington St, Indianapolis, IN 46204, USA"
+    "Hilton" = "Hilton Indianapolis Hotel & Suites, 120 W Market St, Indianapolis, IN 46204, USA"
+    "Union Station" = "Crowne Plaza Indianapolis Downtown Union Station, 123 W Louisiana St, Indianapolis, IN 46225"	
+}
+
+# ---------------- ICS HEADER ----------------
+
+$Lines = @()
+$Lines += "BEGIN:VCALENDAR"
+$Lines += "VERSION:2.0"
+$Lines += "PRODID:-//GenCon ICS Generator//EN"
+$Lines += "CALSCALE:GREGORIAN"
+$Lines += "METHOD:PUBLISH"
+
+# ---------------- PROCESS EVENTS ----------------
+
+foreach ($url in $Urls) {
+
+    Write-Host "Fetching: $url"
+
+    try {
+        $response = Invoke-WebRequest -Uri $url -UseBasicParsing
+        $html = $response.Content
+
+        # -------- Parse Attributes --------
+
+        $attrBlocks = [regex]::Matches(
+            $html,
+            '<div class="attr">(.*?)</div>\s*</div>',
+            'Singleline'
+        )
+
+        $EventData = @{}
+
+        foreach ($block in $attrBlocks) {
+
+            $nameMatch  = [regex]::Match($block.Value, '<div class="name">(.*?)</div>', 'Singleline')
+            $valueMatch = [regex]::Match($block.Value, '<div class="value-full">(.*?)</div>', 'Singleline')
+
+            if ($nameMatch.Success -and $valueMatch.Success) {
+
+                $rawName  = [System.Web.HttpUtility]::HtmlDecode($nameMatch.Groups[1].Value)
+                $rawValue = [System.Web.HttpUtility]::HtmlDecode($valueMatch.Groups[1].Value)
+
+                $name  = ($rawName  -replace '<.*?>','').Trim().TrimEnd(':')
+                $value = ($rawValue -replace '<.*?>','').Trim()
+
+                $EventData[$name] = $value
+            }
+        }
+
+        # -------- Title --------
+
+        if (-not $EventData.ContainsKey("Title")) {
+            Write-Warning "No title found. Skipping."
+            continue
+        }
+
+        $title = $EventData["Title"]
+
+        # -------- Time Reconstruction --------
+
+        if (-not $EventData.ContainsKey("Start Date & Time") -or
+            -not $EventData.ContainsKey("End Date & Time")) {
+
+            Write-Warning "Missing start or end time."
+            continue
+        }
+
+        function Build-DateTime($string) {
+
+            # Example: "Wednesday, 11:00 AM EDT"
+            if ($string -match '^(?<day>\w+),\s+(?<time>[\d:]+\s+[APM]+)') {
+
+                $dayName = $Matches['day']
+                $timePart = $Matches['time']
+
+                if (-not $GenConDays.ContainsKey($dayName)) {
+                    return $null
+                }
+
+                $date = $GenConDays[$dayName]
+                $combined = "$($date.ToString('yyyy-MM-dd')) $timePart"
+
+                $eastern = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
+                $local = [datetime]::Parse($combined)
+                $utc = [System.TimeZoneInfo]::ConvertTimeToUtc($local, $eastern)
+
+                return $utc.ToString("yyyyMMddTHHmmssZ")
+            }
+
+            return $null
+        }
+
+        $startUTC = Build-DateTime $EventData["Start Date & Time"]
+        $endUTC   = Build-DateTime $EventData["End Date & Time"]
+
+        if (-not $startUTC -or -not $endUTC) {
+            Write-Warning "Failed to reconstruct datetime."
+            continue
+        }
+
+       # -------- Location (Map Address Only) --------
+$locationRaw = $EventData["Location"]
+$mapAddress = $locationRaw.Trim()
+
+foreach ($venue in $VenueMap.Keys) {
+    if ($locationRaw -like "*$venue*") {
+        $mapAddress = $VenueMap[$venue]
+        break
+    }
+}
+
+# Escape commas for ICS
+$mapAddress = $mapAddress -replace ',', '\,'
+
+# -------- Description with bold labels --------
+$descParts = @()
+
+# Game System
+if ($EventData["Game System"]) {
+    $descParts += "Game System: $($EventData["Game System"].Trim())"
+}
+
+# Room
+if ($locationRaw) {
+    $roomText = ($locationRaw -replace "`r?`n", ", " -replace '\s+', ' ').Trim()
+    $descParts += "Room: $roomText"
+}
+
+# Event URL
+$descParts += "URL: $link"
+
+# Individual description fields
+foreach ($field in @("Description","Short Description","Long Description")) {
+    if ($EventData[$field] -and $EventData[$field].Trim() -ne "") {
+        $descParts += "${field}:`n$($EventData[$field].Trim())"
+    }
+}
+
+# Join all description parts
+$description = ($descParts -join "`n`n")
+
+# Escape newlines and commas for ICS
+$description = $description -replace "`r?`n", "\n"
+$description = $description -replace ',', '\,'
+
+        # -------- Build VEVENT --------
+
+        $Lines += "BEGIN:VEVENT"
+        $Lines += "UID=" + [guid]::NewGuid()
+        $Lines += "DTSTAMP=" + (Get-Date -Format "yyyyMMddTHHmmssZ")
+        $Lines += "DTSTART:$startUTC"
+        $Lines += "DTEND:$endUTC"
+        $Lines += "SUMMARY:$title"
+        $Lines += "LOCATION:$mapAddress"
+        $Lines += "DESCRIPTION:$description"
+        $Lines += "END:VEVENT"
+
+        Write-Host "Added event: $title"
+    }
+    catch {
+        Write-Warning ("Failed to fetch $url : " + $_.Exception.Message)
+    }
+}
+
+$Lines += "END:VCALENDAR"
+
+[System.IO.File]::WriteAllLines($OutputPath, $Lines)
+
+Write-Host "Completed. ICS created at: $OutputPath"
