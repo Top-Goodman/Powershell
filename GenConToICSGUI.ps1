@@ -60,6 +60,8 @@ function Build-DateTime($string) {
 
 function Parse-Event($url) {
 
+    if ($url -match '(?<EventCode>\d+)$') {$url = "https://www.gencon.com/events/$($Matches.EventCode)"}
+
     try {
         $response = Invoke-WebRequest -Uri $url -UseBasicParsing -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
 
@@ -89,7 +91,8 @@ function Parse-Event($url) {
                 $EventData[$name] = $value
             }
         }
-
+        $EventData["URL"] = $url
+        $EventData["Event Code"] = $Matches.EventCode
         return $EventData
     }
     catch {
@@ -138,7 +141,7 @@ $XAML = @"
 
             <!-- URL input -->
             <StackPanel Orientation="Horizontal">
-                <TextBox Name="UrlInputBox" Width="260" Background="#111111" Foreground="White" BorderBrush="#E9FE60" BorderThickness="1" Padding="4"/>
+                <TextBox Name="UrlInputBox" Width="260" Background="#111111" Foreground="White" BorderBrush="#E9FE60" BorderThickness="1" Padding="4" ToolTip="Enter a GenCon Event URL (ie: https://www.gencon.com/events/327174), GameID (ie: RPG26ND327174), or Event Code (ie: 327174)" Text="URL, GameID, or Event Code"/>
                 <Button Name="AddUrlBtn" Width="60" Margin="5,0,0,0" Background="#E9FE60" Foreground="Black" FontWeight="Bold" Padding="6,4" BorderThickness="0">Add</Button>
             </StackPanel>
 
@@ -295,7 +298,7 @@ $GenerateBtn.Add_Click({
             $descParts += "Room: $roomText"
         }
 
-        $descParts += "URL: $url"
+        $descParts += "URL: $($EventData["URL"])"
 
         foreach ($field in @("Description","Short Description","Long Description")) {
             if ($EventData[$field] -and $EventData[$field].Trim() -ne "") {
