@@ -1,0 +1,6 @@
+[int]$total = 300 # I'll be using seconds, so this is 5 minutes
+for ($i = $total; $i -ge 0; $i--) {
+$percent = [int](($i/  $total) * 100) # percent remaining do bar shrinks for countdown
+Write-Progress -Activity "Waiting" -Status "Remaining: $i s" -PercentComplete $percent
+Start-Sleep -seconds 1 # Use this and math against total for wait time and iteration interval
+}
